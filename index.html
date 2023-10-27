@@ -1,0 +1,119 @@
+<html>
+<head>
+<title>GamepadEventSource demo</title>
+</head>
+<body>
+<script>
+// Generates custom events for gamepad button presses, axis movements, and
+// cursor movements. Events are dispatched on `window`.
+//
+// Each button generates button#down, button#up when pressed or released where
+// # is the button index.
+//
+// Each axis generates an event containing its new value: leftTrigger,
+// rightTrigger, leftStickX, leftStickY, rightStickX, rightStickY.
+class GamepadEventSource {
+  constructor() {
+    this.gamepadConnected = [];
+    this.gamepadState = [];
+  }
+
+  eventFromButton(currentState, lastState, buttonIndex) {
+    const currentButton = currentState.buttons[buttonIndex];
+    if (currentButton) {
+      if (lastState === undefined || !lastState.buttons[buttonIndex]) {
+        return `button${buttonIndex}down`;
+      }
+    } else if (lastState !== undefined && lastState.buttons[buttonIndex]) {
+      return `button${buttonIndex}up`;
+    }
+    return null;
+  }
+
+  updateGamepadState() {
+    const pads = navigator.getGamepads();
+
+    for (let i = 0; i < pads.length; ++i) {
+      const pad = pads[i];
+      if (!pad) {
+        if (this.gamepadConnected[i] === true) {
+          console.log(`Gamepad ${i} disconnected`);
+          this.gamepadConnected[i] = false;
+          this.gamepadState[i] = undefined;
+        }
+        continue;
+      }
+      if (this.gamepadConnected[i] !== true) {
+        console.log(`Gamepad ${i} connected`);
+        this.gamepadConnected[i] = true;
+      }
+      const buttons = [];
+      for (let buttonIndex = 0; buttonIndex < pad.buttons.length; ++buttonIndex) {
+        buttons[buttonIndex] = pad.buttons[buttonIndex].pressed;
+      }
+      const leftTrigger = pad.buttons[6].value;
+      const rightTrigger = pad.buttons[7].value;
+      const leftStickX = pad.axes[0];
+      const leftStickY = pad.axes[1];
+      const rightStickX = pad.axes[2];
+      const rightStickY = pad.axes[3];
+
+      const lastState = this.gamepadState[i];
+      const currentState = {buttons, leftTrigger, rightTrigger, leftStickX, leftStickY, rightStickX, rightStickY};
+      this.gamepadState[i] = currentState;
+
+      // Dispatch events
+      for (let buttonIndex = 0; buttonIndex < pad.buttons.length; ++buttonIndex) {
+        const buttonEvent = this.eventFromButton(currentState, lastState, buttonIndex);
+        if (buttonEvent !== null) {
+          window.dispatchEvent(new Event(buttonEvent));
+        }
+      }
+      if (lastState === undefined || lastState.leftTrigger !== currentState.leftTrigger) {
+        window.dispatchEvent(new CustomEvent('leftTrigger', { detail: leftTrigger }));
+      }
+      if (lastState === undefined || lastState.rightTrigger !== currentState.rightTrigger) {
+        window.dispatchEvent(new CustomEvent('rightTrigger', { detail: rightTrigger }));
+      }
+      if (lastState === undefined || lastState.leftStickX !== currentState.leftStickX) {
+        window.dispatchEvent(new CustomEvent('leftStickX', { detail: leftStickX }));
+      }
+      if (lastState === undefined || lastState.leftStickY !== currentState.leftStickY) {
+        window.dispatchEvent(new CustomEvent('leftStickY', { detail: leftStickY }));
+      }
+      if (lastState === undefined || lastState.rightStickX !== currentState.rightStickX) {
+        window.dispatchEvent(new CustomEvent('rightStickX', { detail: rightStickX }));
+      }
+      if (lastState === undefined || lastState.rightStickY !== currentState.rightStickY) {
+        window.dispatchEvent(new CustomEvent('rightStickY', { detail: rightStickY }));
+      }
+    }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  // Log gamepad events to the developer console.
+  window.addEventListener('gamepadconnected', console.log);
+  window.addEventListener('gamepaddisconnected', console.log);
+  for (let i = 0; i < 16; ++i) {
+    window.addEventListener(`button${i}down`, console.log);
+    window.addEventListener(`button${i}up`, console.log);
+  }
+  window.addEventListener('leftTrigger', console.log);
+  window.addEventListener('rightTrigger', console.log);
+  window.addEventListener('leftStickX', console.log);
+  window.addEventListener('leftStickY', console.log);
+  window.addEventListener('rightStickX', console.log);
+  window.addEventListener('rightStickY', console.log);
+
+  const gamepadEventSource = new GamepadEventSource();
+  const onRaf = () => {
+    gamepadEventSource.updateGamepadState();
+    window.requestAnimationFrame(onRaf);
+  };
+  window.requestAnimationFrame(onRaf);
+});
+
+</script>
+</body>
+</html>
